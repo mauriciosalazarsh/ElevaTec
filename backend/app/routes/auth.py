@@ -33,21 +33,12 @@ def login():
 
 
 @auth_bp.route('/register', methods=['POST'])
-@jwt_required()
 def register():
     try:
-        # Only admin can register new users
-        current_user_id = get_jwt_identity()
-        current_user = User.query.get(int(current_user_id))
-
-        if current_user.role != 'admin':
-            return jsonify({'error': 'Unauthorized'}), 403
-
         data = request.get_json()
         name = data.get('name')
         email = data.get('email')
         password = data.get('password')
-        role = data.get('role', 'client')
 
         if not name or not email or not password:
             return jsonify({'error': 'Name, email and password required'}), 400
@@ -55,11 +46,12 @@ def register():
         if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Email already exists'}), 400
 
+        # Public registration always creates client users
         new_user = User(
             name=name,
             email=email,
             password_hash=generate_password_hash(password),
-            role=role
+            role='client'
         )
 
         db.session.add(new_user)
