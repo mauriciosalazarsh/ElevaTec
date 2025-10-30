@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: elevatec_db
+    environment:
+      POSTGRES_USER: elevadmin
+      POSTGRES_PASSWORD: elevapass
+      POSTGRES_DB: elevadb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - elevatec_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elevadmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: elevatec_backend
+    ports:
+      - "5002:5000"
+    environment:
+      DATABASE_URL: postgresql://elevadmin:elevapass@db:5432/elevadb
+      FLASK_APP: app.py
+      FLASK_ENV: development
+      SECRET_KEY: elevatec-secret-key-2025
+      JWT_SECRET_KEY: elevatec-jwt-secret-key-2025
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - elevatec_network
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: elevatec_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:5002
+    depends_on:
+      - backend
+    networks:
+      - elevatec_network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile.simulator
+    container_name: elevatec_simulator
+    environment:
+      BACKEND_URL: http://backend:5000
+      INTERVAL_SECONDS: 5
+    depends_on:
+      - backend
+    networks:
+      - elevatec_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  elevatec_network:
+    driver: bridge

@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias
+RUN pip install --no-cache-dir requests
+
+# Copiar script
+COPY esp32_camera_simulator.py .
+
+# Hacer ejecutable
+RUN chmod +x esp32_camera_simulator.py
+
+# Ejecutar simulador
+CMD ["python", "-u", "esp32_camera_simulator.py"]
