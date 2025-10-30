@@ -50,6 +50,39 @@ const AdminDashboard = () => {
     return spaces.filter((space) => space.space_type === selectedType);
   };
 
+  const getFilteredMetrics = () => {
+    const filtered = getFilteredSpaces();
+
+    if (filtered.length === 0) {
+      return {
+        total_elevators: 0,
+        avg_aforo_percentage: 0,
+        available: 0,
+        moderate: 0,
+        full: 0,
+      };
+    }
+
+    const total = filtered.length;
+    const available = filtered.filter((s) => s.aforo_status === 'bajo').length;
+    const moderate = filtered.filter((s) => s.aforo_status === 'medio').length;
+    const full = filtered.filter((s) => s.aforo_status === 'alto').length;
+
+    const totalOccupancy = filtered.reduce((sum, space) => {
+      const percentage = space.capacity > 0 ? (space.current_people / space.capacity) * 100 : 0;
+      return sum + percentage;
+    }, 0);
+    const avgOccupancy = total > 0 ? totalOccupancy / total : 0;
+
+    return {
+      total_elevators: total,
+      avg_aforo_percentage: avgOccupancy,
+      available,
+      moderate,
+      full,
+    };
+  };
+
   const getSpaceTypeIcon = (type) => {
     const icons = {
       salon: (
@@ -109,17 +142,43 @@ const AdminDashboard = () => {
 
   const spacesByType = getSpacesByType();
   const filteredSpaces = getFilteredSpaces();
+  const filteredMetrics = getFilteredMetrics();
 
   return (
     <>
       <Navbar />
       <div className="min-h-screen bg-gray-100 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-secondary mb-8">Panel de Administración</h1>
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-secondary">Panel de Administración</h1>
+            {selectedType !== 'all' && (
+              <button
+                onClick={() => setSelectedType('all')}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition flex items-center space-x-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                <span>Limpiar filtro</span>
+              </button>
+            )}
+          </div>
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
               {error}
+            </div>
+          )}
+
+          {/* Filter indicator */}
+          {selectedType !== 'all' && (
+            <div className="mb-6 bg-primary/10 border border-primary/30 text-primary px-4 py-3 rounded-lg flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                <span className="font-medium">Filtrando por: {getSpaceTypeName(selectedType)}</span>
+              </div>
             </div>
           )}
 
@@ -128,8 +187,10 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">Total Espacios</p>
-                  <p className="text-4xl font-bold mt-2">{metrics?.total_elevators || 0}</p>
+                  <p className="text-blue-100 text-sm font-medium">
+                    {selectedType === 'all' ? 'Total Espacios' : `${getSpaceTypeName(selectedType)}`}
+                  </p>
+                  <p className="text-4xl font-bold mt-2">{filteredMetrics.total_elevators}</p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-4 rounded-lg">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,10 +203,8 @@ const AdminDashboard = () => {
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm font-medium">Dispositivos Online</p>
-                  <p className="text-4xl font-bold mt-2">
-                    {metrics?.online_devices || 0}<span className="text-2xl">/{metrics?.total_devices || 0}</span>
-                  </p>
+                  <p className="text-green-100 text-sm font-medium">Disponibles</p>
+                  <p className="text-4xl font-bold mt-2">{filteredMetrics.available}</p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-4 rounded-lg">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,7 +219,7 @@ const AdminDashboard = () => {
                 <div>
                   <p className="text-yellow-100 text-sm font-medium">Ocupación Promedio</p>
                   <p className="text-4xl font-bold mt-2">
-                    {metrics?.avg_aforo_percentage?.toFixed(1) || 0}<span className="text-2xl">%</span>
+                    {filteredMetrics.avg_aforo_percentage.toFixed(1)}<span className="text-2xl">%</span>
                   </p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-4 rounded-lg">
@@ -171,15 +230,15 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">Registros (24h)</p>
-                  <p className="text-4xl font-bold mt-2">{metrics?.recent_logs_24h || 0}</p>
+                  <p className="text-red-100 text-sm font-medium">Llenos</p>
+                  <p className="text-4xl font-bold mt-2">{filteredMetrics.full}</p>
                 </div>
                 <div className="bg-white bg-opacity-20 p-4 rounded-lg">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
               </div>
